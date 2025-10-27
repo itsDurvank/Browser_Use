@@ -1,0 +1,7 @@
+1. Intro The agent opens a brave browser, and navigates to producthunt.com 
+2. From the product hunt page, get the names and url of top 2 products
+3. Then visit each url one by one
+4. Get the review on the UI of each site
+5. Get the navbar elements in list format
+6. Summarize the each section 
+7. Outro
