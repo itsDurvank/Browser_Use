@@ -1,40 +1,57 @@
-from browser_use import Agent,BrowserSession
 from langchain_google_genai import ChatGoogleGenerativeAI
-import os
+from browser_use import Agent, Browser, BrowserConfig, BrowserSession, Controller
+from dotenv import load_dotenv
+from browser_use.browser import BrowserProfile
+from pydantic import BaseModel
+import contextlib
+import warnings
 
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", api_key=os.getenv("GOOGLE_API_KEY"))
+import asyncio
 
+warnings.simplefilter("ignore", ResourceWarning)
+
+load_dotenv()
+
+llm = ChatGoogleGenerativeAI(model='gemini-2.0-flash')
+
+
+class Post(BaseModel):
+    url: str
+    content: str
+
+class Posts(BaseModel):
+    posts: list[Post]
+
+controller = Controller(output_model=Post)
 
 
 async def main():
-    browser= BrowserSession(
-        keep_alive=True, 
+    # If no executable_path provided, uses Playwright/Patchright's built-in Chromium
+    browser_profile = BrowserProfile(
+        # NOTE: you need to close your chrome browser - so that this can open your browser in debug mode
+        executable_path='C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', 
+        user_data_dir= "C:/Users/prati/AppData/Local/Google/Chrome/User Data/Default",
         headless=False,
-        wait_for_network_idle_page_load_time=3.0,
-        allowed_domains=['*.producthunt.com', '*'],
-        executable_path="C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe"
-    )
-    await browser.start()
+)
+    browser_session = BrowserSession(browser_profile=browser_profile)
 
+    
     agent = Agent(
-        task=f"""
-               1. Use Navigate action to go to 'https://www.spotify.com' 
-               2. Use wait_for_page_load action to ensure the page is fully loaded
-               3. Use click action to open the login page
-               4. Use type action to enter email which is {os.getenv('spotify_email')}
-               5. Use wait action to wait for user input for OTP
-               6. Use search action to find 'blue' song on the search bar
-               7. Use click action on the play button to play the first song from the search results
-
-""",
+        task="Go to amazon.com and search for 'asus rog'. " \
+        "From the results, select the first laptop and open it, " \
+        "then add the asus rog strix in the cart and proceed to open the cart page, " \
+        "Now go to spotify.com and search for edsheran galwaygirl and play it, " \
+        "now go to youtube and search for tenz and play his video" ,
         llm=llm,
-        browser_session=browser,
-        
+        browser_session=browser_session,
+        controller=controller,
     )
-    result = await agent.run()
-    data = result.final_result()
-    print("Final result:", data)
+    try:
+        result = await agent.run()
+        print(result.final_result())
+    finally:
+        await browser_session.close()
 
-if __name__ == "__main__":
-    import asyncio
+
+with contextlib.suppress(ValueError):
     asyncio.run(main())
